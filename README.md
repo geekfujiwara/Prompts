@@ -6,7 +6,6 @@
 ## ディレクトリ構成
 
 - [`workshops/`](./workshops) — ワークショップで使用したプロンプト集
-  - [`cowork-taiken/`](./workshops/cowork-taiken) — Cowork 体験ワークショップ用プロンプト
+  - [`cowork-entry/`](./workshops/cowork-entry) — Cowork 体験ワークショップ用プロンプト
 - [`games/`](./games) — ゲーム制作のプロンプト集
   - [`osaka-meibutsu-catch-game/`](./games/osaka-meibutsu-catch-game) — 大阪名物キャッチゲーム
-
