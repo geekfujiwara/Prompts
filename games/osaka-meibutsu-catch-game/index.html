@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>大阪名物キャッチゲーム</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #fff3e0;
+    font-family: sans-serif;
+  }
+  #game {
+    position: relative;
+    width: 480px;
+    height: 480px;
+    background: #ffe0b2;
+    overflow: hidden;
+    border: 4px solid #e65100;
+  }
+  #basket {
+    position: absolute;
+    bottom: 10px;
+    width: 80px;
+    height: 30px;
+    background: #6d4c41;
+    border-radius: 8px;
+  }
+  .item {
+    position: absolute;
+    font-size: 32px;
+    user-select: none;
+  }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 480px;
+    font-size: 20px;
+    margin: 8px 0;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+  }
+  button {
+    font-size: 18px;
+    padding: 8px 16px;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+<h1>大阪名物キャッチゲーム</h1>
+<div id="hud">
+  <div>スコア: <span id="score">0</span></div>
+  <div>残り時間: <span id="time">60</span>秒</div>
+</div>
+<div id="game">
+  <div id="basket"></div>
+  <div id="overlay">
+    <div id="resultText"></div>
+    <button id="retryBtn">リトライ</button>
+  </div>
+</div>
+<p>← → キーでカゴを操作してください</p>
+<script>
+(function () {
+  const game = document.getElementById('game');
+  const basket = document.getElementById('basket');
+  const scoreEl = document.getElementById('score');
+  const timeEl = document.getElementById('time');
+  const overlay = document.getElementById('overlay');
+  const resultText = document.getElementById('resultText');
+  const retryBtn = document.getElementById('retryBtn');
+
+  const GAME_WIDTH = 480;
+  const GAME_HEIGHT = 480;
+  const BASKET_WIDTH = 80;
+  const BASKET_SPEED = 12;
+  const GAME_DURATION = 60;
+
+  const ITEMS = [
+    { emoji: '🐙', name: 'たこ焼き', points: 10 },
+    { emoji: '🥞', name: 'お好み焼き', points: 15 },
+    { emoji: '🍢', name: '串カツ', points: 20 },
+    { emoji: '🥟', name: '豚まん', points: 30 },
+  ];
+  const MISS_ITEM = { emoji: '🥦', name: 'ハズレ', points: -15 };
+
+  let basketX = (GAME_WIDTH - BASKET_WIDTH) / 2;
+  let score = 0;
+  let timeLeft = GAME_DURATION;
+  let running = false;
+  let items = [];
+  let keys = { left: false, right: false };
+  let spawnTimer = null;
+  let countdownTimer = null;
+  let rafId = null;
+
+  function resetGame() {
+    items.forEach(i => i.el.remove());
+    items = [];
+    score = 0;
+    timeLeft = GAME_DURATION;
+    basketX = (GAME_WIDTH - BASKET_WIDTH) / 2;
+    scoreEl.textContent = score;
+    timeEl.textContent = timeLeft;
+    overlay.style.display = 'none';
+    basket.style.left = basketX + 'px';
+  }
+
+  function spawnItem() {
+    const pool = Math.random() < 0.25 ? MISS_ITEM : ITEMS[Math.floor(Math.random() * ITEMS.length)];
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.textContent = pool.emoji;
+    const x = Math.random() * (GAME_WIDTH - 32);
+    el.style.left = x + 'px';
+    el.style.top = '-32px';
+    game.appendChild(el);
+    items.push({ el, x, y: -32, points: pool.points, speed: 2 + Math.random() * 2 });
+  }
+
+  function update() {
+    if (keys.left) basketX -= BASKET_SPEED;
+    if (keys.right) basketX += BASKET_SPEED;
+    basketX = Math.max(0, Math.min(GAME_WIDTH - BASKET_WIDTH, basketX));
+    basket.style.left = basketX + 'px';
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      item.y += item.speed;
+      item.el.style.top = item.y + 'px';
+
+      const basketTop = GAME_HEIGHT - 40;
+      if (item.y >= basketTop && item.y <= GAME_HEIGHT &&
+          item.x + 16 >= basketX && item.x <= basketX + BASKET_WIDTH) {
+        score += item.points;
+        scoreEl.textContent = score;
+        item.el.remove();
+        items.splice(i, 1);
+        continue;
+      }
+
+      if (item.y > GAME_HEIGHT) {
+        item.el.remove();
+        items.splice(i, 1);
+      }
+    }
+
+    if (running) rafId = requestAnimationFrame(update);
+  }
+
+  function startGame() {
+    resetGame();
+    running = true;
+    rafId = requestAnimationFrame(update);
+    spawnTimer = setInterval(spawnItem, 800);
+    countdownTimer = setInterval(() => {
+      timeLeft -= 1;
+      timeEl.textContent = timeLeft;
+      if (timeLeft <= 0) endGame();
+    }, 1000);
+  }
+
+  function endGame() {
+    running = false;
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    cancelAnimationFrame(rafId);
+    resultText.textContent = `ゲーム終了！ 最終スコア: ${score}点`;
+    overlay.style.display = 'flex';
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') keys.left = true;
+    if (e.key === 'ArrowRight') keys.right = true;
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft') keys.left = false;
+    if (e.key === 'ArrowRight') keys.right = false;
+  });
+
+  retryBtn.addEventListener('click', startGame);
+
+  startGame();
+})();
+</script>
+</body>
+</html>
